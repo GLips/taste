@@ -27,6 +27,45 @@ You bring the sources and the agents. Taste fetches nothing and calls no model.
 - **Retrieval: pull by default.** `taste recall "<query>"` returns accepted beliefs first, then rejections marked "not believed", then raw memories. A narrow `UserPromptSubmit` hook for Claude Code (a few items, labelled as evidence) is opt-in at install.
 - **Packaging.** Standalone binaries built with Bun; no runtime needed. An optional `taste daemon` hosts the scheduler and the review UI. There's no hosted service.
 
+## Try v1
+
+The v1 demo build runs from source with [Bun](https://bun.sh); there's no compiled binary yet.
+
+```bash
+bun install
+alias taste="bun $PWD/src/cli/main.ts"
+export TASTE_STORE=/tmp/taste-demo
+taste seed                        # fictional store: Dana (demo), projects acme-web and billing-api
+taste recall "tailwind"           # believed, not believed, memories
+taste review                      # review UI on http://localhost:4747
+```
+
+Run `taste --help`, or `taste <command> --help`, for every command. Every command takes `--json` and `--store <dir>`. Exit codes are 0 for success, 2 for invalid input and 3 for a refused near repeat.
+
+### Install the agent skill
+
+`skills/taste/SKILL.md` teaches an agent when to capture, propose, recall and listen. For Claude Code, link it into your skills folder:
+
+```bash
+ln -s "$PWD/skills/taste" ~/.claude/skills/taste
+```
+
+### Install the prompt hook (opt-in)
+
+`hooks/user-prompt-submit.ts` adds at most three ratified beliefs or rejections to each prompt, labelled as evidence. It never adds raw memories. It has a 650ms deadline and prints nothing when it runs out of time, finds no match, or finds no store. Add it to `~/.claude/settings.json` (or a project's `.claude/settings.json`):
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "bun /absolute/path/to/taste/hooks/user-prompt-submit.ts" }] }
+    ]
+  }
+}
+```
+
+The store is `TASTE_STORE`, otherwise `.taste` in the session's working directory. Set `TASTE_SCOPE=<project>` to recall only beliefs in that scope; without it, beliefs from every scope are eligible, each labelled with its scope. To see exactly what it would inject for a prompt, run `taste hook preview "<prompt>"`, or use the recall inspector in the review UI.
+
 ## Out of scope
 
 Fetching or ingesting sources, agent-authored memories, summarised memories, beliefs that change themselves, topics and oracles, decay ranking, and writing beliefs into other files.

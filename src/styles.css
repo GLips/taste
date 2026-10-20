@@ -1,0 +1,5 @@
+/*
+ * Mantine's layered build: its rules sit in `@layer mantine` and StyleX's atomic rules are unlayered, so StyleX
+ * always wins without `!important`. Keep this the app's single stylesheet.
+ */
+@import "@mantine/core/styles.layer.css";
