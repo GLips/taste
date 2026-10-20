@@ -1,0 +1,5 @@
+.index/
+node_modules/
+.agent_cache/
+dist/
+.DS_Store
