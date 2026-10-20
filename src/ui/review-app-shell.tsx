@@ -18,9 +18,8 @@ const styles = stylex.create({
     borderBottomColor: "var(--mantine-color-gray-2)",
   },
   bar: { height: "48px" },
-  brand: { display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "var(--mantine-color-dark-7)" },
-  logo: { width: "26px", height: "26px", display: "block" },
-  wordmark: { fontWeight: 750, letterSpacing: "-0.03em", fontSize: "17px" },
+  brand: { display: "flex", alignItems: "center" },
+  lockup: { height: "24px", display: "block" },
   navLink: {
     paddingInline: "10px",
     paddingBlock: "5px",
@@ -50,8 +49,7 @@ export function ReviewAppShell({ children }: { children: ReactNode }) {
           <Group justify="space-between" {...stylex.props(styles.bar)}>
             <Group gap="lg">
               <Link to="/" {...stylex.props(styles.brand)}>
-                <img src="/brand/icon.svg" alt="" {...stylex.props(styles.logo)} />
-                <span {...stylex.props(styles.wordmark)}>taste</span>
+                <img src="/brand/lockup.svg" alt="taste" {...stylex.props(styles.lockup)} />
               </Link>
               <Group gap={2}>
                 <Link to="/" {...stylex.props(styles.navLink)} activeOptions={{ exact: true }} activeProps={ACTIVE_NAV}>

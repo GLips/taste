@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/banner.png" alt="taste: your taste, remembered" width="100%"></p>
+
 # Taste
 
 An opinionated memory layer for agents.
@@ -6,7 +8,7 @@ Execution is cheap now that agents do it, so a person's judgment is the moat. Ta
 
 You bring the sources and the agents. Taste fetches nothing and calls no model.
 
-> Status: design stage. The working map lives in [`docs/brainstorms/2026-10-19-taste/map.md`](docs/brainstorms/2026-10-19-taste/map.md).
+> Status: v1 demo. It runs from source; [Try v1](#try-v1) below. The design map lives in [`docs/brainstorms/2026-10-19-taste/map.md`](docs/brainstorms/2026-10-19-taste/map.md).
 
 ## Core ideas
 
