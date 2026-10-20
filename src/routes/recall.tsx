@@ -1,34 +1,33 @@
 import {
-  Accordion,
+  ActionIcon,
   Alert,
   Autocomplete,
-  Badge,
-  Box,
   Button,
   Center,
   Code,
   Group,
   Loader,
   Paper,
+  SegmentedControl,
   Stack,
-  Switch,
   Text,
   TextInput,
   Title,
+  Tooltip,
 } from "@mantine/core";
 import * as stylex from "@stylexjs/stylex";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { AnchorLink } from "../ui/router-links.tsx";
 import { Schema } from "effect";
+import { FolderTree, History, Search } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { RecalledBelief, RecallResult } from "../core/index.ts";
-import { shortIdOf } from "../shared/vocabulary.ts";
-import { BeliefScopeChips, BeliefStatusBadge } from "../ui/belief-chips.tsx";
+import { BeliefScopeChips, BeliefStatusDot } from "../ui/belief-chips.tsx";
 import { formatReviewDate } from "../ui/format.ts";
 import { MemoryQuote } from "../ui/memory-quote.tsx";
 import { recallInspectionQuery, reviewStoreInfoQuery } from "../ui/review-queries.ts";
 import { QueryErrorAlert } from "../ui/route-panels.tsx";
+import { AnchorLink } from "../ui/router-links.tsx";
 
 const RecallSearch = Schema.Struct({
   q: Schema.optionalKey(Schema.String),
@@ -45,92 +44,118 @@ const styles = stylex.create({
   layout: {
     display: "grid",
     gridTemplateColumns: { default: "minmax(0, 1fr) minmax(0, 1fr)", "@media (max-width: 960px)": "minmax(0, 1fr)" },
-    gap: "24px",
+    gap: "20px",
     alignItems: "start",
   },
   payload: { whiteSpace: "pre-wrap", wordBreak: "break-word", fontSize: "12px", lineHeight: 1.55 },
-  sectionLabel: { textTransform: "uppercase", letterSpacing: "0.06em", fontSize: "11px", fontWeight: 600 },
+  row: { display: "flex", gap: "8px", alignItems: "baseline" },
+  rowBody: { minWidth: 0, flex: 1, display: "flex", flexDirection: "column", gap: "4px" },
+  quotes: { paddingLeft: "2px" },
 });
 
-function SectionHeading({ children, count }: { children: ReactNode; count: number }) {
+function RecallSectionHeading({ children, count }: { children: ReactNode; count: number }) {
   return (
-    <Group gap={6}>
-      <Text c="dimmed" {...stylex.props(styles.sectionLabel)}>
-        {children}
-      </Text>
-      <Badge size="xs" color="gray" variant="light" circle>
+    <Text size="sm" fw={600}>
+      {children}{" "}
+      <Text span size="xs" c="dimmed" fw={400}>
         {count}
-      </Badge>
-    </Group>
+      </Text>
+    </Text>
   );
 }
 
-function BeliefLinkText({ id, children }: { id: string; children: ReactNode }) {
+/** One recalled belief as a row: status dot, wording, scope, and whatever should travel with it. */
+function RecallBeliefRow({ id, status, statement, appliesTo, children }: Pick<RecalledBelief, "id" | "status" | "statement" | "appliesTo"> & { children?: ReactNode }) {
   return (
-    <AnchorLink to="/beliefs/$id" params={{ id }} c="inherit" fw={500} size="sm" underline="hover">
-      {children}
-    </AnchorLink>
-  );
-}
-
-function RecalledBeliefItem({ belief }: { belief: RecalledBelief }) {
-  return (
-    <Paper p="sm">
-      <Stack gap={6}>
-        <Group gap={6}>
-          <BeliefStatusBadge status={belief.status} />
-          <BeliefScopeChips appliesTo={belief.appliesTo} />
+    <div {...stylex.props(styles.row)}>
+      <BeliefStatusDot status={status} />
+      <div {...stylex.props(styles.rowBody)}>
+        <Group gap={6} wrap="nowrap" justify="space-between" align="flex-start">
+          <AnchorLink to="/beliefs/$id" params={{ id }} c="inherit" fw={500} size="sm" underline="hover">
+            {statement}
+          </AnchorLink>
+          <BeliefScopeChips appliesTo={appliesTo} />
         </Group>
-        <BeliefLinkText id={belief.id}>{belief.statement}</BeliefLinkText>
-        {belief.quotes.map((memory) => (
-          <MemoryQuote key={memory.id} memory={memory} />
-        ))}
-      </Stack>
-    </Paper>
+        {children}
+      </div>
+    </div>
   );
 }
 
 function RecallSections({ recall }: { recall: RecallResult }) {
   return (
     <Stack gap="md">
-      <SectionHeading count={recall.believed.length}>Believed</SectionHeading>
-      {recall.believed.length === 0 && <Text c="dimmed">No accepted belief in scope matches.</Text>}
-      {recall.believed.map((belief) => (
-        <RecalledBeliefItem key={belief.id} belief={belief} />
-      ))}
+      <Stack gap={8}>
+        <RecallSectionHeading count={recall.believed.length}>Believed</RecallSectionHeading>
+        {recall.believed.map((belief) => (
+          <RecallBeliefRow key={belief.id} {...belief}>
+            <Stack gap={4} {...stylex.props(styles.quotes)}>
+              {belief.quotes.map((memory) => (
+                <MemoryQuote key={memory.id} memory={memory} />
+              ))}
+            </Stack>
+          </RecallBeliefRow>
+        ))}
+      </Stack>
 
-      <SectionHeading count={recall.notBelieved.length}>Not believed</SectionHeading>
-      {recall.notBelieved.length === 0 && <Text c="dimmed">No rejected belief matches.</Text>}
-      {recall.notBelieved.map((rejection) => (
-        <Paper key={rejection.id} p="sm">
-          <Stack gap={4}>
-            <Group gap={6}>
-              <BeliefStatusBadge status="rejected" />
-              <BeliefScopeChips appliesTo={rejection.appliesTo} />
-            </Group>
-            <BeliefLinkText id={rejection.id}>{rejection.statement}</BeliefLinkText>
-            <Text size="xs" c="dimmed">
-              Rejected {formatReviewDate(rejection.decidedAt)}: “{rejection.reason}”
-            </Text>
-          </Stack>
-        </Paper>
-      ))}
+      {recall.notBelieved.length > 0 && (
+        <Stack gap={8}>
+          <RecallSectionHeading count={recall.notBelieved.length}>Not believed</RecallSectionHeading>
+          {recall.notBelieved.map((rejection) => (
+            <RecallBeliefRow key={rejection.id} id={rejection.id} status="rejected" statement={rejection.statement} appliesTo={rejection.appliesTo}>
+              <Text size="xs" c="dimmed">
+                “{rejection.reason}” · {formatReviewDate(rejection.decidedAt)}
+              </Text>
+            </RecallBeliefRow>
+          ))}
+        </Stack>
+      )}
 
-      <SectionHeading count={recall.memories.length}>Memories</SectionHeading>
-      {recall.memories.length === 0 && <Text c="dimmed">No quote matches.</Text>}
-      {recall.memories.map((memory) => (
-        <MemoryQuote key={memory.id} memory={memory} />
-      ))}
+      {recall.memories.length > 0 && (
+        <Stack gap={8}>
+          <RecallSectionHeading count={recall.memories.length}>Loose quotes</RecallSectionHeading>
+          {recall.memories.map((memory) => (
+            <MemoryQuote key={memory.id} memory={memory} />
+          ))}
+        </Stack>
+      )}
 
       {recall.history.length > 0 && (
-        <>
-          <SectionHeading count={recall.history.length}>History</SectionHeading>
+        <Stack gap={8}>
+          <RecallSectionHeading count={recall.history.length}>History</RecallSectionHeading>
           {recall.history.map((belief) => (
-            <RecalledBeliefItem key={belief.id} belief={belief} />
+            <RecallBeliefRow key={belief.id} {...belief} />
           ))}
-        </>
+        </Stack>
       )}
     </Stack>
+  );
+}
+
+function HookPayloadPanel({ context, stdout }: { context: string; stdout: string }) {
+  const [view, setView] = useState<"context" | "stdout">("context");
+  return (
+    <Paper p="sm">
+      <Group justify="space-between" mb="xs">
+        <Tooltip label="The exact text the prompt hook would add before the agent sees the prompt" withArrow multiline w={260}>
+          <Text size="sm" fw={600}>
+            Injected
+          </Text>
+        </Tooltip>
+        <SegmentedControl
+          size="xs"
+          value={view}
+          onChange={(value) => setView(value as "context" | "stdout")}
+          data={[
+            { value: "context", label: "Context" },
+            { value: "stdout", label: "Hook stdout" },
+          ]}
+        />
+      </Group>
+      <Code block {...stylex.props(styles.payload)}>
+        {view === "context" ? context : stdout}
+      </Code>
+    </Paper>
   );
 }
 
@@ -153,48 +178,43 @@ function RecallInspectorScreen() {
       replace: true,
     });
 
-  const believedById = new Map((inspection.data?.recall.believed ?? []).map((belief) => [belief.id, belief]));
-
   return (
-    <Stack gap="lg">
-      <div>
-        <Title order={2}>Recall inspector</Title>
-        <Text c="dimmed">What an agent would get for a prompt: the full recall, and the exact text the hook would inject.</Text>
-      </div>
+    <Stack gap="md">
       <form
         onSubmit={(event) => {
           event.preventDefault();
           run();
         }}
       >
-        <Group align="flex-end" gap="sm">
+        <Group gap="sm" wrap="nowrap">
+          <Tooltip label="What an agent would be told for a prompt" withArrow position="bottom-start">
+            <Title order={3}>Recall</Title>
+          </Tooltip>
           <TextInput
-            label="Prompt"
-            placeholder="e.g. add styling to the billing settings page"
+            aria-label="Prompt"
+            placeholder="A prompt, e.g. add styling to the billing settings page"
+            leftSection={<Search size={14} />}
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
             style={{ flex: 1 }}
             autoFocus
           />
-          <Autocomplete
-            label="Scope"
-            placeholder="Every scope"
-            data={scopes}
-            value={scope}
-            onChange={setScope}
-            w={200}
-          />
+          <Autocomplete aria-label="Scope" placeholder="Any scope" leftSection={<FolderTree size={14} />} data={scopes} value={scope} onChange={setScope} w={180} />
+          <Tooltip label={submitted.history ? "Hiding nothing: replaced and retracted included" : "Include replaced and retracted beliefs"} withArrow>
+            <ActionIcon
+              size="lg"
+              variant={submitted.history ? "light" : "default"}
+              aria-label="Include history"
+              aria-pressed={submitted.history}
+              onClick={() => run(!submitted.history)}
+            >
+              <History size={16} />
+            </ActionIcon>
+          </Tooltip>
           <Button type="submit" size="sm">
             Recall
           </Button>
         </Group>
-        <Switch
-          mt="sm"
-          size="xs"
-          label="Include superseded and retracted (history)"
-          checked={submitted.history}
-          onChange={(event) => run(event.currentTarget.checked)}
-        />
       </form>
 
       {submitted.query === "" ? (
@@ -209,79 +229,14 @@ function RecallInspectorScreen() {
         </Center>
       ) : (
         <div {...stylex.props(styles.layout)}>
-          <Box>
-            <Text fw={600} mb="sm">
-              Recall
-            </Text>
-            <RecallSections recall={inspection.data.recall} />
-          </Box>
-          <Box>
-            <Text fw={600} mb="sm">
-              Hook payload
-            </Text>
-            {inspection.data.hook.additionalContext === undefined ? (
-              <Alert color="gray" variant="light">
-                Nothing matched, so the hook would print nothing and the prompt goes through untouched.
-              </Alert>
-            ) : (
-              <Stack gap="md">
-                <Paper p="md">
-                  <Code block {...stylex.props(styles.payload)}>
-                    {inspection.data.hook.additionalContext}
-                  </Code>
-                </Paper>
-                <Accordion variant="separated" multiple>
-                  {inspection.data.hook.items.map((item) => {
-                    const believed = believedById.get(item.id);
-                    return (
-                      <Accordion.Item key={item.id} value={item.id}>
-                        <Accordion.Control>
-                          <Group gap={6} wrap="nowrap">
-                            <Badge size="xs" color={item.status === "accepted" ? "teal" : "red"} style={{ flexShrink: 0 }}>
-                              {item.status === "accepted" ? "believed" : "not believed"}
-                            </Badge>
-                            <Text size="sm" truncate>
-                              {item.statement}
-                            </Text>
-                          </Group>
-                        </Accordion.Control>
-                        <Accordion.Panel>
-                          <Stack gap="xs">
-                            <Text size="xs" c="dimmed">
-                              <Code>{shortIdOf(item.id)}</Code> ·{" "}
-                              <AnchorLink to="/beliefs/$id" params={{ id: item.id }} size="xs">
-                                open belief
-                              </AnchorLink>
-                            </Text>
-                            {item.status === "rejected" && (
-                              <Text size="sm">
-                                Rejected {formatReviewDate(item.decidedAt)}: “{item.reason}”
-                              </Text>
-                            )}
-                            {believed?.quotes.map((memory) => (
-                              <MemoryQuote key={memory.id} memory={memory} />
-                            ))}
-                          </Stack>
-                        </Accordion.Panel>
-                      </Accordion.Item>
-                    );
-                  })}
-                  <Accordion.Item value="raw">
-                    <Accordion.Control>
-                      <Text size="sm" c="dimmed">
-                        Raw hook stdout
-                      </Text>
-                    </Accordion.Control>
-                    <Accordion.Panel>
-                      <Code block {...stylex.props(styles.payload)}>
-                        {inspection.data.hook.hookOutput}
-                      </Code>
-                    </Accordion.Panel>
-                  </Accordion.Item>
-                </Accordion>
-              </Stack>
-            )}
-          </Box>
+          <RecallSections recall={inspection.data.recall} />
+          {inspection.data.hook.additionalContext === undefined || inspection.data.hook.hookOutput === undefined ? (
+            <Alert color="gray" variant="light">
+              Nothing matched, so the hook stays silent and the prompt goes through untouched.
+            </Alert>
+          ) : (
+            <HookPayloadPanel context={inspection.data.hook.additionalContext} stdout={inspection.data.hook.hookOutput} />
+          )}
         </div>
       )}
     </Stack>

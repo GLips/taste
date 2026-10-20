@@ -1,49 +1,34 @@
-import { Alert, Box, Button, Divider, Group, Kbd, Paper, Stack, Text } from "@mantine/core";
+import { ActionIcon, Alert, Badge, Group, HoverCard, Paper, Stack, Text, Tooltip } from "@mantine/core";
 import * as stylex from "@stylexjs/stylex";
 import { useHotkeys } from "@tanstack/react-hotkeys";
 import { useNavigate } from "@tanstack/react-router";
-import { AnchorLink, ButtonLink } from "./router-links.tsx";
+import { Check, MessageSquare, X } from "lucide-react";
 import type { Ref } from "react";
 import type { InboxCard } from "../core/index.ts";
-import { BeliefScopeChips } from "./belief-chips.tsx";
 import { BeliefSummaryLine } from "./belief-link.tsx";
-import { formatTimeAgo, formatReviewTime } from "./format.ts";
+import { DespiteNotice, SupersedesNotice } from "./belief-asides.tsx";
+import { formatReviewTime, formatTimeAgo } from "./format.ts";
 import { MemoryQuote } from "./memory-quote.tsx";
 import { RejectReasonForm } from "./reject-reason-form.tsx";
+import { AnchorLink, ButtonLink } from "./router-links.tsx";
 import { useReviewDecision } from "./use-review-decision.ts";
+
+// Below this, a "related" match only shares a word or two; listing those was noise.
+const SIMILAR_ENOUGH = 0.35;
 
 const styles = stylex.create({
   card: {
-    transitionProperty: "box-shadow, border-color",
+    transitionProperty: "box-shadow, border-color, background-color",
     transitionDuration: "120ms",
-    borderLeftWidth: "3px",
-    borderLeftStyle: "solid",
-    borderLeftColor: "transparent",
+    cursor: "default",
   },
   selected: {
-    borderLeftColor: "var(--mantine-color-indigo-5)",
-    boxShadow: "0 1px 2px rgba(15,23,42,0.06), 0 4px 16px rgba(15,23,42,0.06)",
+    borderColor: "var(--mantine-color-taste-4)",
+    boxShadow: "0 0 0 3px var(--mantine-color-taste-1)",
   },
-  statement: { fontSize: "17px", fontWeight: 600, lineHeight: 1.35, letterSpacing: "-0.01em" },
-  reasoning: { whiteSpace: "pre-wrap" },
-  despite: {
-    backgroundColor: "var(--mantine-color-orange-0)",
-    borderRadius: "8px",
-    padding: "12px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px",
-  },
-  label: { textTransform: "uppercase", letterSpacing: "0.06em", fontSize: "11px", fontWeight: 600 },
+  statement: { fontSize: "15px", fontWeight: 600, lineHeight: 1.35, letterSpacing: "-0.005em" },
+  quotes: { paddingTop: "2px" },
 });
-
-function SectionLabel({ children }: { children: string }) {
-  return (
-    <Text c="dimmed" {...stylex.props(styles.label)}>
-      {children}
-    </Text>
-  );
-}
 
 /** Mounted only inside the selected card, so a/r/d always act on exactly one proposal. */
 function SelectedCardHotkeys({ onAccept, onReject, onDiscuss }: { onAccept: () => void; onReject: () => void; onDiscuss: () => void }) {
@@ -55,7 +40,7 @@ function SelectedCardHotkeys({ onAccept, onReject, onDiscuss }: { onAccept: () =
   return null;
 }
 
-/** One pending proposal with everything needed to decide it without leaving the inbox. */
+/** One pending proposal with what's needed to decide it: the claim, what it replaces or overrides, and the words behind it. */
 export function InboxProposalCard({
   card,
   selected,
@@ -71,12 +56,16 @@ export function InboxProposalCard({
   onRejectingChange: (open: boolean) => void;
   ref?: Ref<HTMLDivElement>;
 }) {
-  const { view, related } = card;
+  const { view } = card;
   const { belief } = view;
   const decision = useReviewDecision(belief.id);
   const navigate = useNavigate();
+  const shown = new Set([view.supersedes?.id, view.despite?.id]);
+  const similar = card.related.filter((match) => match.similarity >= SIMILAR_ENOUGH && !shown.has(match.id));
+  const reasoning = belief.reasoning.trim();
+
   return (
-    <Paper ref={ref} p="md" onClick={onSelect} {...stylex.props(styles.card, selected && styles.selected)}>
+    <Paper ref={ref} px="md" py="sm" onClick={onSelect} {...stylex.props(styles.card, selected && styles.selected)}>
       {selected && !rejecting && (
         <SelectedCardHotkeys
           onAccept={() => void decision.decide("accept")}
@@ -84,77 +73,87 @@ export function InboxProposalCard({
           onDiscuss={() => void navigate({ to: "/beliefs/$id", params: { id: belief.id } })}
         />
       )}
-      <Stack gap="sm">
-        <Group justify="space-between" wrap="nowrap" align="flex-start">
-          <Group gap={6}>
-            <BeliefScopeChips appliesTo={belief.applies_to} />
-            {view.supersedes !== undefined && <Text size="xs" c="dimmed">revision</Text>}
-          </Group>
-          <Text size="xs" c="dimmed" title={formatReviewTime(belief.proposed_at)}>
-            {belief.proposed_by} · {formatTimeAgo(belief.proposed_at)}
-          </Text>
+      <Stack gap={8}>
+        <Group justify="space-between" wrap="nowrap" align="flex-start" gap="md">
+          <Stack gap={2} style={{ minWidth: 0 }}>
+            <AnchorLink to="/beliefs/$id" params={{ id: belief.id }} c="inherit" underline="never" {...stylex.props(styles.statement)}>
+              {belief.statement}
+            </AnchorLink>
+            <Text size="xs" c="dimmed" lineClamp={1} title={reasoning === "" ? undefined : reasoning}>
+              <span title={formatReviewTime(belief.proposed_at)}>
+                {belief.proposed_by} · {formatTimeAgo(belief.proposed_at)}
+              </span>
+              {reasoning !== "" && ` — ${reasoning}`}
+            </Text>
+          </Stack>
+          {!rejecting && (
+            <Group gap={4} wrap="nowrap">
+              {similar.length > 0 && (
+                <HoverCard width={360} withArrow shadow="md" position="bottom-end">
+                  <HoverCard.Target>
+                    <Badge variant="light" color="gray" tt="none" fw={500} style={{ cursor: "help" }}>
+                      ≈ {similar.length}
+                    </Badge>
+                  </HoverCard.Target>
+                  <HoverCard.Dropdown>
+                    <Text size="xs" c="dimmed" mb={6}>
+                      Similar beliefs
+                    </Text>
+                    <Stack gap={6}>
+                      {similar.map((match) => (
+                        <BeliefSummaryLine key={match.id} summary={match} note={`${Math.round(match.similarity * 100)}%`} />
+                      ))}
+                    </Stack>
+                  </HoverCard.Dropdown>
+                </HoverCard>
+              )}
+              <Tooltip label={view.thread.length > 0 ? `Discuss (${view.thread.length}) · D` : "Discuss with an agent · D"} withArrow>
+                <ButtonLink
+                  to="/beliefs/$id"
+                  params={{ id: belief.id }}
+                  variant="subtle"
+                  color="gray"
+                  size="compact-sm"
+                  px={6}
+                  leftSection={<MessageSquare size={15} />}
+                  aria-label="Discuss"
+                >
+                  {view.thread.length > 0 ? view.thread.length : null}
+                </ButtonLink>
+              </Tooltip>
+              <Tooltip label="Reject · R" withArrow>
+                <ActionIcon variant="default" size="md" aria-label="Reject" onClick={() => onRejectingChange(true)}>
+                  <X size={16} />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label="Accept · A" withArrow>
+                <ActionIcon size="md" aria-label="Accept" loading={decision.pending} onClick={() => void decision.decide("accept")}>
+                  <Check size={16} strokeWidth={2.5} />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
+          )}
         </Group>
 
-        <Text {...stylex.props(styles.statement)}>{belief.statement}</Text>
-        {belief.reasoning.trim() !== "" && (
-          <Text c="dimmed" {...stylex.props(styles.reasoning)}>
-            {belief.reasoning.trim()}
-          </Text>
-        )}
+        {view.supersedes !== undefined && <SupersedesNotice replaces={view.supersedes} />}
+        {view.despite !== undefined && <DespiteNotice despite={view.despite} agentCase={belief.despite_case} />}
 
-        {view.supersedes !== undefined && (
-          <Box>
-            <SectionLabel>Replaces</SectionLabel>
-            <BeliefSummaryLine summary={view.supersedes} />
-          </Box>
-        )}
-
-        {view.despite !== undefined && (
-          <div {...stylex.props(styles.despite)}>
-            <Text size="xs" fw={600} c="orange.8">
-              Re-proposed despite an earlier {view.despite.status} belief
-            </Text>
-            <BeliefSummaryLine summary={view.despite} />
-            {belief.despite_case !== undefined && (
-              <Box>
-                <SectionLabel>The agent's case</SectionLabel>
-                <Text {...stylex.props(styles.reasoning)}>{belief.despite_case}</Text>
-              </Box>
-            )}
-          </div>
-        )}
-
-        <Box>
-          <SectionLabel>{view.supports.length === 1 ? "Evidence" : `Evidence (${view.supports.length})`}</SectionLabel>
-          <Stack gap="xs" mt={6}>
-            {view.supports.map((memory) => (
-              <MemoryQuote key={memory.id} memory={memory} />
-            ))}
-            {view.contradicts.map((memory) => (
-              <MemoryQuote key={memory.id} memory={memory} contradicts />
-            ))}
-          </Stack>
-        </Box>
-
-        {related.length > 0 && (
-          <Box>
-            <SectionLabel>Related beliefs</SectionLabel>
-            <Stack gap={6} mt={6}>
-              {related.map((match) => (
-                <BeliefSummaryLine key={match.id} summary={match} note={match.similarity >= 0.35 ? `${Math.round(match.similarity * 100)}% similar` : "shares wording"} />
-              ))}
-            </Stack>
-          </Box>
-        )}
+        <Stack gap={6} {...stylex.props(styles.quotes)}>
+          {view.supports.map((memory) => (
+            <MemoryQuote key={memory.id} memory={memory} />
+          ))}
+          {view.contradicts.map((memory) => (
+            <MemoryQuote key={memory.id} memory={memory} contradicts />
+          ))}
+        </Stack>
 
         {decision.error !== undefined && (
-          <Alert color="red" variant="light" withCloseButton onClose={decision.clearError} title="Not decided">
+          <Alert color="red" variant="light" withCloseButton onClose={decision.clearError} py={6}>
             {decision.error}
           </Alert>
         )}
 
-        <Divider />
-        {rejecting ? (
+        {rejecting && (
           <RejectReasonForm
             pending={decision.pending}
             onCancel={() => onRejectingChange(false)}
@@ -164,31 +163,9 @@ export function InboxProposalCard({
               })
             }
           />
-        ) : (
-          <Group justify="space-between">
-            <Group gap="xs">
-              <Button color="teal" loading={decision.pending} onClick={() => void decision.decide("accept")} rightSection={selected && <Kbd size="xs">a</Kbd>}>
-                Accept
-              </Button>
-              <Button variant="default" onClick={() => onRejectingChange(true)} rightSection={selected && <Kbd size="xs">r</Kbd>}>
-                Reject…
-              </Button>
-              <ButtonLink
-                variant="subtle"
-                color="gray"
-                to="/beliefs/$id"
-                params={{ id: belief.id }}
-                rightSection={selected && <Kbd size="xs">d</Kbd>}
-              >
-                Discuss{view.thread.length > 0 && ` (${view.thread.length})`}
-              </ButtonLink>
-            </Group>
-            <AnchorLink to="/beliefs/$id" params={{ id: belief.id }} size="xs" c="dimmed">
-              Open record
-            </AnchorLink>
-          </Group>
         )}
       </Stack>
     </Paper>
   );
 }
+

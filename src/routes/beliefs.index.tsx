@@ -1,9 +1,10 @@
-import { Center, Group, Loader, Paper, SegmentedControl, Select, Stack, Table, Text, Title } from "@mantine/core";
+import { Center, Group, Loader, Paper, SegmentedControl, Select, Stack, Table, Text, Title, Tooltip } from "@mantine/core";
+import { CornerDownRight, MessageSquare } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { AnchorLink } from "../ui/router-links.tsx";
 import { Schema } from "effect";
-import { BeliefScopeChips, BeliefStatusBadge } from "../ui/belief-chips.tsx";
+import { BeliefScopeChips, BeliefStatusDot } from "../ui/belief-chips.tsx";
 import { formatReviewDate } from "../ui/format.ts";
 import { BELIEF_STATUSES, type BeliefStatus, BeliefStatusSchema } from "../shared/vocabulary.ts";
 import { beliefListQuery, reviewStoreInfoQuery } from "../ui/review-queries.ts";
@@ -39,27 +40,27 @@ function BeliefListScreen() {
     });
 
   return (
-    <Stack gap="lg">
-      <div>
-        <Title order={2}>Beliefs</Title>
-        <Text c="dimmed">Everything ever proposed, with what became of it.</Text>
-      </div>
+    <Stack gap="md">
       <Group justify="space-between">
-        <SegmentedControl
+        <Group gap="md">
+          <Tooltip label="Everything ever proposed, with what became of it" withArrow position="bottom-start">
+            <Title order={3}>Beliefs</Title>
+          </Tooltip>
+          <SegmentedControl
           size="xs"
           value={search.status ?? "all"}
           data={STATUS_CHOICES.map((value) => ({ value, label: value[0]?.toUpperCase() + value.slice(1) }))}
           onChange={(value) => setFilter({ status: value === "all" ? undefined : (value as BeliefStatus) })}
-        />
+          />
+        </Group>
         <Select
           size="xs"
-          w={220}
-          placeholder="Every scope"
+          w={200}
+          placeholder="Any scope"
           clearable
           value={search.scope ?? null}
           data={scopes ?? (search.scope ? [search.scope] : [])}
           onChange={(value) => setFilter({ scope: value ?? undefined })}
-          description={search.scope ? "Includes beliefs that apply everywhere" : undefined}
         />
       </Group>
       {list.error ? (
@@ -74,49 +75,46 @@ function BeliefListScreen() {
         </Center>
       ) : (
         <Paper p={0}>
-          <Table verticalSpacing="sm" horizontalSpacing="md" highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Belief</Table.Th>
-                <Table.Th w={130}>Status</Table.Th>
-                <Table.Th w={180}>Scope</Table.Th>
-                <Table.Th w={120}>Proposed</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
+          <Table verticalSpacing={8} horizontalSpacing="md" highlightOnHover>
             <Table.Tbody>
               {list.data.map((belief) => (
                 <Table.Tr key={belief.id}>
+                  <Table.Td w={28} pr={0}>
+                    <BeliefStatusDot status={belief.status} />
+                  </Table.Td>
                   <Table.Td>
                     <AnchorLink to="/beliefs/$id" params={{ id: belief.id }} c="inherit" fw={500} size="sm" underline="hover">
                       {belief.statement}
                     </AnchorLink>
                     {belief.replacedBy !== undefined && (
-                      <Text size="xs" c="dimmed">
-                        Replaced by{" "}
-                        <AnchorLink to="/beliefs/$id" params={{ id: belief.replacedBy.id }} size="xs">
+                      <Group gap={4} wrap="nowrap">
+                        <CornerDownRight size={12} color="var(--mantine-color-gray-5)" />
+                        <AnchorLink to="/beliefs/$id" params={{ id: belief.replacedBy.id }} size="xs" c="dimmed" lineClamp={1}>
                           {belief.replacedBy.statement}
                         </AnchorLink>
-                      </Text>
+                      </Group>
                     )}
                     {belief.status === "rejected" && belief.reason !== undefined && (
-                      <Text size="xs" c="dimmed">
-                        Rejected: “{belief.reason}”
+                      <Text size="xs" c="dimmed" lineClamp={1}>
+                        “{belief.reason}”
                       </Text>
                     )}
+                  </Table.Td>
+                  <Table.Td w={48}>
                     {belief.threadCount > 0 && (
-                      <Text size="xs" c="dimmed">
-                        {belief.threadCount} {belief.threadCount === 1 ? "note" : "notes"}
-                      </Text>
+                      <Tooltip label={`${belief.threadCount} ${belief.threadCount === 1 ? "note" : "notes"} in the thread`} withArrow>
+                        <Group gap={3} wrap="nowrap" c="dimmed">
+                          <MessageSquare size={13} />
+                          <Text size="xs">{belief.threadCount}</Text>
+                        </Group>
+                      </Tooltip>
                     )}
                   </Table.Td>
-                  <Table.Td>
-                    <BeliefStatusBadge status={belief.status} />
-                  </Table.Td>
-                  <Table.Td>
+                  <Table.Td style={{ width: "1%", whiteSpace: "nowrap" }}>
                     <BeliefScopeChips appliesTo={belief.appliesTo} />
                   </Table.Td>
-                  <Table.Td>
-                    <Text size="xs" c="dimmed">
+                  <Table.Td w={84} ta="right">
+                    <Text size="xs" c="dimmed" style={{ whiteSpace: "nowrap" }}>
                       {formatReviewDate(belief.proposedAt)}
                     </Text>
                   </Table.Td>

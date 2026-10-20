@@ -1,7 +1,8 @@
-import { Badge, Container, Group, Text, Tooltip, UnstyledButton } from "@mantine/core";
+import { Badge, Container, Group, Text, Tooltip } from "@mantine/core";
 import * as stylex from "@stylexjs/stylex";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { reviewStoreInfoQuery } from "./review-queries.ts";
 
@@ -11,19 +12,21 @@ const styles = stylex.create({
     position: "sticky",
     top: 0,
     zIndex: 10,
-    backgroundColor: "rgba(255,255,255,0.92)",
-    backdropFilter: "blur(8px)",
+    backgroundColor: "white",
     borderBottomWidth: "1px",
     borderBottomStyle: "solid",
     borderBottomColor: "var(--mantine-color-gray-2)",
   },
-  bar: { height: "52px" },
-  wordmark: { fontWeight: 700, letterSpacing: "-0.02em", fontSize: "16px" },
+  bar: { height: "48px" },
+  brand: { display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "var(--mantine-color-dark-7)" },
+  logo: { width: "26px", height: "26px", display: "block" },
+  wordmark: { fontWeight: 750, letterSpacing: "-0.03em", fontSize: "17px" },
   navLink: {
     paddingInline: "10px",
-    paddingBlock: "6px",
+    paddingBlock: "5px",
     borderRadius: "6px",
     fontSize: "14px",
+    fontWeight: 500,
     color: "var(--mantine-color-gray-7)",
     textDecoration: "none",
     display: "flex",
@@ -31,11 +34,12 @@ const styles = stylex.create({
     gap: "6px",
     ":hover": { backgroundColor: "var(--mantine-color-gray-1)" },
   },
-  main: { paddingBlock: "28px" },
+  who: { display: "flex", alignItems: "center", gap: "5px", cursor: "default" },
+  main: { paddingBlock: "20px" },
 });
 
 // TanStack's `activeProps` styles the current tab; StyleX can't express "this link is active", so this is inline.
-const ACTIVE_NAV = { style: { backgroundColor: "var(--mantine-color-indigo-0)", color: "var(--mantine-color-indigo-7)" } };
+const ACTIVE_NAV = { style: { backgroundColor: "var(--mantine-color-taste-0)", color: "var(--mantine-color-taste-9)" } };
 
 export function ReviewAppShell({ children }: { children: ReactNode }) {
   const info = useQuery(reviewStoreInfoQuery);
@@ -45,9 +49,10 @@ export function ReviewAppShell({ children }: { children: ReactNode }) {
         <Container size="lg">
           <Group justify="space-between" {...stylex.props(styles.bar)}>
             <Group gap="lg">
-              <UnstyledButton component={Link} to="/">
+              <Link to="/" {...stylex.props(styles.brand)}>
+                <img src="/brand/icon.svg" alt="" {...stylex.props(styles.logo)} />
                 <span {...stylex.props(styles.wordmark)}>taste</span>
-              </UnstyledButton>
+              </Link>
               <Group gap={2}>
                 <Link to="/" {...stylex.props(styles.navLink)} activeOptions={{ exact: true }} activeProps={ACTIVE_NAV}>
                   Inbox
@@ -61,15 +66,18 @@ export function ReviewAppShell({ children }: { children: ReactNode }) {
                   Beliefs
                 </Link>
                 <Link to="/recall" {...stylex.props(styles.navLink)} activeProps={ACTIVE_NAV}>
-                  Recall inspector
+                  Recall
                 </Link>
               </Group>
             </Group>
             {info.data !== undefined ? (
-              <Tooltip label={info.data.root} withArrow>
-                <Text size="xs" c="dimmed">
-                  Reviewing as <b>{info.data.owner}</b>
-                </Text>
+              <Tooltip label={`Reviewing as ${info.data.owner} · ${info.data.root}`} withArrow position="bottom-end">
+                <span {...stylex.props(styles.who)}>
+                  <UserRound size={14} color="var(--mantine-color-gray-6)" />
+                  <Text size="xs" c="dimmed">
+                    {info.data.owner}
+                  </Text>
+                </span>
               </Tooltip>
             ) : info.error ? (
               <Text size="xs" c="red">

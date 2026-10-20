@@ -12,10 +12,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Taste review" },
+      { title: "Taste" },
     ],
-    // An empty icon, so every load doesn't ask for /favicon.ico and log its 404.
-    links: [{ rel: "stylesheet", href: appCss }, { rel: "icon", href: "data:," }],
+    links: [{ rel: "stylesheet", href: appCss }, { rel: "icon", type: "image/svg+xml", href: "/brand/icon.svg" }],
   }),
   shellComponent: RootDocument,
   component: () => (

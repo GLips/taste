@@ -1,4 +1,5 @@
-import { Alert, Badge, Button, Code, Group, Kbd, Paper, Stack, Text, Textarea, Tooltip } from "@mantine/core";
+import { ActionIcon, Alert, Badge, Group, Paper, Stack, Text, Textarea, Tooltip } from "@mantine/core";
+import { SendHorizontal } from "lucide-react";
 import * as stylex from "@stylexjs/stylex";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -8,7 +9,7 @@ import { describeAuthor, formatReviewTime, formatTimeAgo } from "./format.ts";
 
 const styles = stylex.create({
   entry: { display: "flex", flexDirection: "column", gap: "4px" },
-  owner: { backgroundColor: "var(--mantine-color-indigo-0)", borderColor: "var(--mantine-color-indigo-1)" },
+  owner: { backgroundColor: "var(--mantine-color-taste-0)", borderColor: "var(--mantine-color-taste-1)" },
   text: { whiteSpace: "pre-wrap" },
   dot: { width: "8px", height: "8px", borderRadius: "50%", display: "inline-block" },
   dotLive: { backgroundColor: "var(--mantine-color-teal-5)", boxShadow: "0 0 0 3px var(--mantine-color-teal-1)" },
@@ -67,24 +68,21 @@ export function BeliefThread({
   return (
     <Stack gap="sm">
       <Group justify="space-between">
-        <Text fw={600}>Thread</Text>
+        <Text size="sm" fw={600}>
+          Thread
+        </Text>
         <AgentListeningIndicator listeners={listeners} />
       </Group>
-      {thread.length === 0 && (
-        <Text c="dimmed" size="sm">
-          No discussion yet. Ask the agent a question, or say what you'd change.
-        </Text>
-      )}
       {thread.map((entry) => {
         const isOwner = entry.author === owner;
         return (
-          <Paper key={entry.id} p="sm" {...stylex.props(styles.entry, isOwner && styles.owner)}>
+          <Paper key={entry.id} px="sm" py={8} {...stylex.props(styles.entry, isOwner && styles.owner)}>
             <Group gap={8}>
-              <Badge size="xs" variant={isOwner ? "filled" : "light"} color={isOwner ? "indigo" : "gray"} tt="none">
+              <Badge size="xs" variant={isOwner ? "filled" : "light"} color={isOwner ? "taste" : "gray"} tt="none">
                 {describeAuthor(entry.author, owner)}
               </Badge>
               <Text size="xs" c="dimmed" title={formatReviewTime(entry.at)}>
-                {formatReviewTime(entry.at)}
+                {formatTimeAgo(entry.at)}
               </Text>
             </Group>
             <Text {...stylex.props(styles.text)}>{entry.text}</Text>
@@ -92,9 +90,9 @@ export function BeliefThread({
         );
       })}
       <Textarea
-        placeholder="Add a note…"
+        placeholder={thread.length === 0 ? "Ask the agent something, or say what you'd change  ·  ⌘↵ to send" : "Reply  ·  ⌘↵ to send"}
         autosize
-        minRows={2}
+        minRows={1}
         value={draft}
         onChange={(event) => setDraft(event.currentTarget.value)}
         onKeyDown={(event) => {
@@ -103,20 +101,19 @@ export function BeliefThread({
             submit();
           }
         }}
+        rightSection={
+          <Tooltip label={`Post as ${owner} · ⌘↵`} withArrow>
+            <ActionIcon variant="subtle" aria-label="Post note" onClick={submit} loading={post.isPending} disabled={draft.trim() === ""}>
+              <SendHorizontal size={15} />
+            </ActionIcon>
+          </Tooltip>
+        }
       />
       {post.error && (
         <Alert color="red" variant="light">
           {post.error.message}
         </Alert>
       )}
-      <Group justify="space-between">
-        <Text size="xs" c="dimmed">
-          Posts as <Code>{owner}</Code> · <Kbd size="xs">⌘</Kbd> <Kbd size="xs">Enter</Kbd>
-        </Text>
-        <Button onClick={submit} loading={post.isPending} disabled={draft.trim() === ""}>
-          Add note
-        </Button>
-      </Group>
     </Stack>
   );
 }

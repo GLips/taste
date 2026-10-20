@@ -1,4 +1,4 @@
-import { Button, Group, Kbd, Text, Textarea } from "@mantine/core";
+import { Button, Group, Textarea } from "@mantine/core";
 import { useState } from "react";
 
 /** A rejection always carries a reason: it is what a later agent is shown when it proposes the same idea again. */
@@ -23,36 +23,31 @@ export function RejectReasonForm({
         submit();
       }}
     >
-      <Textarea
-        data-autofocus
-        autoFocus
-        label="Why reject it?"
-        description="Shown to any agent that proposes this again."
-        placeholder="e.g. only true for acme-web"
-        autosize
-        minRows={2}
-        value={reason}
-        onChange={(event) => setReason(event.currentTarget.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-            event.preventDefault();
-            submit();
-          }
-          if (event.key === "Escape") onCancel();
-        }}
-      />
-      <Group justify="space-between" mt="xs">
-        <Text size="xs" c="dimmed">
-          <Kbd size="xs">⌘</Kbd> <Kbd size="xs">Enter</Kbd> to reject · <Kbd size="xs">Esc</Kbd> to cancel
-        </Text>
-        <Group gap="xs">
-          <Button variant="default" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" color="red" disabled={trimmed === ""} loading={pending}>
-            Reject
-          </Button>
-        </Group>
+      <Group gap="xs" align="flex-start" wrap="nowrap">
+        <Textarea
+          data-autofocus
+          autoFocus
+          aria-label="Why reject it? Agents that propose this again are shown your reason."
+          placeholder="Why not? Agents that propose this again will see your reason. ⌘↵ to reject, Esc to cancel"
+          autosize
+          minRows={1}
+          style={{ flex: 1 }}
+          value={reason}
+          onChange={(event) => setReason(event.currentTarget.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault();
+              submit();
+            }
+            if (event.key === "Escape") onCancel();
+          }}
+        />
+        <Button variant="subtle" color="gray" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" color="red" disabled={trimmed === ""} loading={pending}>
+          Reject
+        </Button>
       </Group>
     </form>
   );
